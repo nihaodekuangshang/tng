@@ -3,3 +3,4 @@
 .*.un~
 .tasks
 tmp*
+test.s

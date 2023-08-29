@@ -8,12 +8,12 @@ assert(){
 	gcc -o $TMP $TMP_FILE
 	./tmp
 	actual="$?"
-	if [ "$actual" -ne "$expected" ]; then
+	if [ "$actual" -eq "$expected" ]; then
+		echo "$input => $expected"
+	else
 		echo "fatal: $input => $actual, but expected $expected"
 		exit 1
 	fi
 }
-for i in $(seq 0 255); do
-	assert $i $i
-done
+assert "20+5+6" 31
 echo "OK"
