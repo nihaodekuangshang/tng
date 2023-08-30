@@ -15,5 +15,5 @@ assert(){
 		exit 1
 	fi
 }
-assert "20+5+6" 31
+assert "20 + 5 +i 6" 31
 echo "OK"
