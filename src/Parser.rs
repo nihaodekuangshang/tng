@@ -24,6 +24,7 @@ impl Display for Expression {
 
 pub fn expr(input: &str) -> Expression {
     let mut lexer = Lexer::new(input);
+    println!("{:?}", lexer);
     expr_bp(&mut lexer, 0)
 }
 fn expr_bp(lexer: &mut Lexer, min_bp: usize) -> Expression {
