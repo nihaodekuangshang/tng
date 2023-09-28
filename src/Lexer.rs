@@ -1,4 +1,35 @@
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+
 use crate::Error::LuaError;
+lazy_static! {
+    static ref KEYWORDS: HashMap<&'static str, TokenType> = {
+        let mut m = HashMap::new();
+        m.insert("and", TokenType::AND);
+        m.insert("break", TokenType::BREAK);
+        m.insert("do", TokenType::DO);
+        m.insert("else", TokenType::ELSE);
+        m.insert("elseif", TokenType::ELSEIF);
+        m.insert("end", TokenType::END);
+        m.insert("false", TokenType::FALSE);
+        m.insert("for", TokenType::FOR);
+        m.insert("function", TokenType::FUNCTION);
+        m.insert("if", TokenType::IF);
+        m.insert("in", TokenType::IN);
+        m.insert("local", TokenType::LOCAL);
+        m.insert("nil", TokenType::NIL);
+        m.insert("not", TokenType::NOT);
+        m.insert("or", TokenType::OR);
+        m.insert("repeat", TokenType::REPEAT);
+        m.insert("return", TokenType::RETURN);
+        m.insert("then", TokenType::THEN);
+        m.insert("true", TokenType::TRUE);
+        m.insert("until", TokenType::UNTIL);
+        m.insert("while", TokenType::WHILE);
+        m.insert("goto", TokenType::GOTO);
+        m
+    };
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
     // Single-character tokens.
@@ -35,21 +66,27 @@ pub enum TokenType {
 
     // Keywords.
     AND,
-    CLASS,
+    BREAK,
+    DO,
     ELSE,
+    ELSEIF,
+    END,
     FALSE,
-    FUN,
     FOR,
+    FUNCTION,
     IF,
+    IN,
+    LOCAL,
     NIL,
+    NOT,
     OR,
-    PRINT,
+    REPEAT,
     RETURN,
-    SUPER,
-    THIS,
+    THEN,
     TRUE,
-    VAR,
+    UNTIL,
     WHILE,
+    GOTO,
 
     Eof,
 }
@@ -94,7 +131,6 @@ impl<'a, 'b: 'a> Lexer<'a> {
     pub fn lexer_tokens(&mut self) {
         while !self.is_end() {
             self.start = self.current;
-            println!("lex_tokensa:{}", self.start);
             self.lexer_token();
         }
         self.tokens.push(Token {
@@ -304,22 +340,21 @@ impl<'a, 'b: 'a> Lexer<'a> {
                     }
                 }
                 '_' | 'a'..='z' | 'A'..='Z' => {
-                    todo!()
+                    self.lex_ident();
                 }
                 '[' => {
                     if let Some(c) = self.peek_char() {
                         if c == '[' {
-                            self.lex_string('[');
+                            self.next_char();
+                            let _ = self.lex_string('[');
                         }
                     }
                 }
                 '\'' => {
-                    self.lex_string('\'');
+                    let _ = self.lex_string('\'');
                 }
                 '"' => {
-                    println!("\":{}:{}", self.start, self.current);
                     let r = self.lex_string('"');
-                    print!("{:?}\n", r);
                 }
                 '\n' => {
                     self.tokens.push(Token {
@@ -330,6 +365,7 @@ impl<'a, 'b: 'a> Lexer<'a> {
                     });
                     self.line += 1;
                 }
+                ' ' | '\t' | '\r' => {}
                 _ => eprintln!(
                     "[line{}]Error:\"{}\"is unexpect char",
                     self.line,
@@ -409,35 +445,91 @@ impl<'a, 'b: 'a> Lexer<'a> {
         Ok(num)
     }
     fn lex_string(&mut self, quota: char) -> Result<usize, LuaError> {
-        let len = (&self.source[self.current..])
-            .find(|c| (c == quota) || (c == '\n'))
-            .ok_or(LuaError::new(
-                self.line,
-                quota.to_string(),
-                "unfinished string".to_string(),
-            ))?;
-        if let Some(c) = self.source.chars().nth(self.current + len) {
-            if c == '\n' {
-                return Err(LuaError::new(
+        if quota == '"' || quota == '\'' {
+            let len = (&self.source[self.current..])
+                .find(|c| (c == quota) || (c == '\n'))
+                .ok_or(LuaError::new(
                     self.line,
                     quota.to_string(),
                     "unfinished string".to_string(),
-                ));
-            } else if c == quota {
-                self.current += len + 1;
-                println!("{}:{}", self.start, self.current);
-                self.tokens.push(Token {
-                    kind: TokenType::STRING,
-                    lexeme: &self.source[self.start + 1..self.current - 1],
-                    literal: Literal::Str(&self.source[self.start + 1..self.current - 1]),
-                    line: self.line,
-                });
-            } else {
-                println!("else:{},{},char:{}", self.start, self.current, c);
+                ))?;
+            if let Some(c) = self.source.chars().nth(self.current + len) {
+                if c == '\n' {
+                    return Err(LuaError::new(
+                        self.line,
+                        quota.to_string(),
+                        "unfinished string".to_string(),
+                    ));
+                } else if c == quota {
+                    self.current += len + 1;
+                    self.tokens.push(Token {
+                        kind: TokenType::STRING,
+                        lexeme: &self.source[self.start + 1..self.current - 1],
+                        literal: Literal::Str(&self.source[self.start + 1..self.current - 1]),
+                        line: self.line,
+                    });
+                } else {
+                    println!("else:{},{},char:{}", self.start, self.current, c);
+                }
             }
+            return Ok(len);
+        } else {
+            let len = (&self.source[self.current..])
+                .find("]]")
+                .ok_or(LuaError::new(
+                    self.line,
+                    quota.to_string(),
+                    "unfinished string".to_string(),
+                ))?;
+            if let Some(c) = self.source.chars().nth(self.current + len) {
+                if c == ']' {
+                    self.current += len + 2;
+                    self.tokens.push(Token {
+                        kind: TokenType::STRING,
+                        lexeme: &self.source[self.start + 2..self.current - 2],
+                        literal: Literal::Str(&self.source[self.start + 2..self.current - 2]),
+                        line: self.line,
+                    });
+                } else {
+                    println!("else:{},{},char:{}", self.start, self.current, c);
+                }
+            }
+            return Ok(len);
         }
-        println!("None:{},{}", self.start, self.current);
-        Ok(len)
+    }
+    fn lex_ident(&mut self) -> Result<usize, LuaError> {
+        while self.is_letter() {
+            self.next_char();
+        }
+        if let Some(k) = self.is_keyword(&self.source[self.start..self.current]) {
+            self.tokens.push(Token {
+                kind: k,
+                lexeme: &self.source[self.start..self.current],
+                literal: Literal::Nil,
+                line: self.line,
+            });
+        } else {
+            self.tokens.push(Token {
+                kind: TokenType::IDENTIFIER,
+                lexeme: &self.source[self.start..self.current],
+                literal: Literal::Nil,
+                line: self.line,
+            });
+        }
+
+        Ok(0)
+    }
+    fn is_letter(&mut self) -> bool {
+        if let Some(c) = self.peek_char() {
+            return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c.is_digit(10) || c == '_';
+        }
+        false
+    }
+    fn is_keyword(&mut self, key: &str) -> Option<TokenType> {
+        if let Some(e) = KEYWORDS.get(key) {
+            return Some(e.clone());
+        }
+        None
     }
 
     pub fn next(&mut self) -> Token {
