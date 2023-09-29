@@ -4,3 +4,4 @@
 .tasks
 tmp*
 test.s
+test.lua
