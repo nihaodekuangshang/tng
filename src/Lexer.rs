@@ -332,6 +332,38 @@ impl<'a, 'b: 'a> Lexer<'a> {
                         line: self.line,
                     });
                 }
+                '(' => {
+                    self.tokens.push(Token {
+                        kind: TokenType::LeftParen,
+                        lexeme: &self.source[self.start..self.current],
+                        literal: Literal::Nil,
+                        line: self.line,
+                    });
+                }
+                ')' => {
+                    self.tokens.push(Token {
+                        kind: TokenType::RightParen,
+                        lexeme: &self.source[self.start..self.current],
+                        literal: Literal::Nil,
+                        line: self.line,
+                    });
+                }
+                '{' => {
+                    self.tokens.push(Token {
+                        kind: TokenType::LeftBrace,
+                        lexeme: &self.source[self.start..self.current],
+                        literal: Literal::Nil,
+                        line: self.line,
+                    });
+                }
+                '}' => {
+                    self.tokens.push(Token {
+                        kind: TokenType::RightBrace,
+                        lexeme: &self.source[self.start..self.current],
+                        literal: Literal::Nil,
+                        line: self.line,
+                    });
+                }
                 '0'..='9' => {
                     self.current -= 1;
                     match self.lex_number(10) {
@@ -340,7 +372,7 @@ impl<'a, 'b: 'a> Lexer<'a> {
                     }
                 }
                 '_' | 'a'..='z' | 'A'..='Z' => {
-                    self.lex_ident();
+                    let _ = self.lex_ident();
                 }
                 '[' => {
                     if let Some(c) = self.peek_char() {
@@ -354,7 +386,7 @@ impl<'a, 'b: 'a> Lexer<'a> {
                     let _ = self.lex_string('\'');
                 }
                 '"' => {
-                    let r = self.lex_string('"');
+                    let _ = self.lex_string('"');
                 }
                 '\n' => {
                     self.tokens.push(Token {
